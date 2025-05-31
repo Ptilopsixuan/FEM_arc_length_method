@@ -185,12 +185,12 @@ class Unit: # 单元
         AL = A * l
         AL2 = A * l**2
         AL3 = A * l**3
-        Kg = np.array([[Fx/l,          0,                           -Mi/l,           -Fx/l,         0,                          -Mj/l],
-                        [0,         12*FI/AL3 + 6*Fx/(5*l),      6*FI/AL2 + Fx/10,      0,        -12*FI/AL3 - 6*Fx/(5*l),    6*FI/AL2 + Fx/10],
-                        [-Mi/l,     6*FI/AL2 + Fx/10,            4*FI/AL + 2*FL/15,    Mi/l,      -6*FI/AL2 - Fx/10,          2*FI/AL - FL/30],
-                        [-Fx/l,         0,                            Mi/l,            Fx/l,          0,                           Mj/l],
-                        [0,         -12*FI/AL3 - 6*Fx/(5*l),     -6*FI/AL2 - Fx/10,     0,        12*FI/AL3 + 6*Fx/(5*l),     -6*FI/AL2 - Fx/10],
-                        [-Mj/l,     6*FI/AL2 + Fx/10,            2*FI/AL - FL/30,      Mj/l,      -6*FI/AL2 - Fx/10,          4*FI/AL + 2*FL/15]])
+        Kg = np.array([[Fx/l, 0, -Mi/l, -Fx/l, 0, -Mj/l],
+                        [0, 12*FI/AL3 + 6*Fx/(5*l), 6*FI/AL2 + Fx/10, 0, -12*FI/AL3 - 6*Fx/(5*l), 6*FI/AL2 + Fx/10],
+                        [-Mi/l, 6*FI/AL2 + Fx/10, 4*FI/AL + 2*FL/15, Mi/l, -6*FI/AL2 - Fx/10, 2*FI/AL - FL/30],
+                        [-Fx/l, 0, Mi/l, Fx/l, 0, Mj/l],
+                        [0, -12*FI/AL3 - 6*Fx/(5*l), -6*FI/AL2 - Fx/10, 0, 12*FI/AL3 + 6*Fx/(5*l), -6*FI/AL2 - Fx/10],
+                        [-Mj/l, 6*FI/AL2 + Fx/10, 2*FI/AL - FL/30, Mj/l, -6*FI/AL2 - Fx/10, 4*FI/AL + 2*FL/15]])
         # Kg = np.dot(self.T.T, Kg)
         # Kg = np.dot(Kg, self.T)
         self.Kg = Kg
@@ -221,7 +221,6 @@ class Unit: # 单元
         u = self.delta_u
         F = np.matmul(K, u)
         return F
-
 
 class Payload: # 荷载
     point: Point = None
@@ -365,7 +364,7 @@ class GeoNonlinear: # 几何非线性
         self.internal_F = internal_F
         return internal_F
         
-    def iterate(self, steps: int=200, max_iterator:int = 10, error: float=1e-3) -> None:
+    def iterate(self, steps: int=200, max_iterator:int = 10, error: float=1e-3):
         # 迭代求解
         self.calculateNumber()
         self.integratePe()
@@ -413,7 +412,80 @@ class GeoNonlinear: # 几何非线性
                     break
 
         return outputs
+
+    def arc_length(self, la_0 = 0.01, steps = 200, error: float=1e-3) -> None:
+        # 弧长迭代求解
+        self.calculateNumber()
+        self.integratePe()
+        F = [np.zeros((self.points_num * 3, 1))]
+        u = [np.zeros((self.points_num * 3, 1))]
+        P = []  # 初始化P
+        P.append(la_0 * self.Pe)
+        outputs: list[OutputData] = []
+
+        for step in range(steps):
+            P_step = P[step]  # 逐步加载
+            F_step = F[step]
+            u_step = u[step]
+            iter: int = 0
+            la = la_0
+            R_step = P_step - F_step
+            self.integrateKe()
             
+            # for iter in range(max_iterator):    # 迭代求解
+            while max(abs(R_step)) >= error * max(abs(P_step)):
+                
+                iter += 1
+                self.calculateA(R_step)
+                print(f"step: {step}, iteration: {iter}")
+                
+                for unit in self.units:
+                    unit.split_displacement()
+                    delta_F = unit.calculateF()
+                    unit.unit_F += delta_F
+                F_step = self.integrateF()
+                u_step += np.array(self.Result).reshape((self.points_num * 3, 1))
+
+                for point in self.points:
+                    point.update()
+
+                for unit in self.units:
+                    unit.update()
+
+                self.reset()
+
+                self.integrateKe()
+
+# ====================================================================#
+                f2 = np.linalg.norm(self.Pe)
+                inv = np.linalg.inv(self.Kg)
+                kr = np.matmul(inv, R_step)
+                kp = np.matmul(inv, self.Pe)
+                dL = -((u_step.T @ kr)[0][0] / ((u_step.T @ kp)+ la * f2)[0][0] )/f2 # 弧长增量
+                
+
+                # a = f2 + np.matmul(kp.T, kp)[0][0]
+                # b = 2*(la*f2 - np.matmul(kp.T, kr) - np.matmul(kp.T, u_step))[0][0]
+                # c = (np.matmul(kr.T, kr) + 2*np.matmul(kr.T, u_step))[0][0]
+                # roots = np.roots([a, b, c])
+                # dL = roots[np.argmin(np.abs(roots))]  # 选择最小的根
+                la += dL
+                P_step = la * self.Pe
+
+                R_step = P_step - F_step
+                for c in self.cl:
+                    R_step[c] = 0
+
+            P_step += la * self.Pe
+            outputs.append(OutputData(self.points).__copy__())
+# ====================================================================#
+
+            F.append(F_step)
+            u.append(u_step)
+            P.append(P_step)
+
+        return outputs
+    
 class OutputData:
     points:list[Point] = []
 
