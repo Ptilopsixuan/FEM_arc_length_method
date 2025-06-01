@@ -365,7 +365,7 @@ class GeoNonlinear: # 几何非线性
         self.internal_F = internal_F
         return internal_F
         
-    def iterate(self, steps: int=200, max_iterator:int = 10, error: float=1e-3):
+    def N_R_method(self, steps: int=200, max_iterator:int = 10, error: float=1e-3):
         # 迭代求解
         self.calculateNumber()
         self.integratePe()
@@ -414,7 +414,7 @@ class GeoNonlinear: # 几何非线性
 
         return outputs
 
-    def arc_length(self, la_0 = 0.005, steps = 200, error: float=1e-3) -> None:
+    def arc_length_method(self, la_0 = 0.005, steps = 200, error: float=1e-3) -> None:
         try:
             # 弧长迭代求解
             self.calculateNumber()
