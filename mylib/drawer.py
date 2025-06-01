@@ -23,8 +23,8 @@ def d(data: type.OutputData, path):
         linewidth=1.5,     # 线宽
         linestyle='-',     # 线型
     )
-    x_min = -5#min(x) - 0.2
-    y_min = -0.3#min(y) - 0.2
+    x_min = -10.3#min(x) - 0.2
+    y_min = -10#min(y) - 0.2
     x_max = 10.3#max(x) + 0.2
     y_max = 10#max(y) + 0.2
     ax.set_xlim(x_min,x_max)
