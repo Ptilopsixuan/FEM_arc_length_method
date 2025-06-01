@@ -454,8 +454,8 @@ class GeoNonlinear: # 几何非线性
                     unit.update()
                 self.integrateKe()
 
-# ====================================================================#  
-                ff = np.matmul(self.Pe.T, self.Pe)[0][0]  # 弧长增量
+                # region calculate delta_lambda
+                ff = np.matmul(self.Pe.T, self.Pe)[0][0]  
                 inv = np.linalg.inv(self.Kg_calc)
                 
                 cl = self.addConstraint()
@@ -472,6 +472,8 @@ class GeoNonlinear: # 几何非线性
 
                 roots = np.roots([a, b, c])
                 dL = roots[np.argmin(abs(roots))].real  # 选择最小的根
+                # endregions
+                
                 la += dL
                 P_step = la * self.Pe
                 R_step = P_step - F_step
@@ -479,6 +481,8 @@ class GeoNonlinear: # 几何非线性
                 for ci in self.cl:
                     R_step[ci] = 0
 
+            # region peak detection
+            # peak detection == True
             if 1 - la < 1e-9: # 如果弧长接近1，认为达到了目标荷载
                 peak = True
 
@@ -488,9 +492,12 @@ class GeoNonlinear: # 几何非线性
             else:
                 P_step = self.Pe
                 la = 1
-            
+
+            # peak detection == False
             # P_step += la_0 * self.Pe
             # la += la_0
+            # endregion
+
             F.append(F_step)
             u.append(u_step)
             P.append(P_step)
@@ -498,7 +505,6 @@ class GeoNonlinear: # 几何非线性
 
             if peak:
                 break
-# ====================================================================#
         return outputs
     
 class OutputData:

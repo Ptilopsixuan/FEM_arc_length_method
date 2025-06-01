@@ -11,8 +11,7 @@ output_path = os.path.join(os.getcwd(), "output", f"{model_name}.txt")
 if not os.path.exists(os.path.dirname(output_path)):
     os.makedirs(os.path.dirname(output_path))
 for i, o in enumerate(output):
-    if i % 100 == 99:
-        writer.writeFile(output_path.replace(".txt", f"_{i:05d}.txt"), o)
+    writer.writeFile(output_path.replace(".txt", f"_{i:05d}.txt"), o)
 
 
 
