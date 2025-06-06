@@ -3,7 +3,7 @@ from . import type
 
 def d(data: type.OutputData, path):
     x = [p.x + p.ax for p in data.points]
-    y = [p.y + p.ay for p in data.points]
+    y = [10*p.y + p.ay for p in data.points]
     fig, ax = plt.subplots(figsize=(8, 10), tight_layout = True)
     ax.set_aspect('equal')
     
