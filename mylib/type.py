@@ -421,7 +421,6 @@ class GeoNonlinear: # 几何非线性
         F = [np.zeros((self.points_num * 3, 1))]
         u = [np.zeros((self.points_num * 3, 1))]
         la: list[float] = [0]
-        
         outputs: list[OutputData] = []
 
         for step in range(steps):
@@ -461,23 +460,8 @@ class GeoNonlinear: # 几何非线性
                             point.ax = -point.ax
                             point.ay = -point.ay
                             point.a_theta = -point.a_theta
-
-                    for unit in self.units:
-                        unit.split_displacement()
-                        delta_F = unit.calculateF()
-                        unit.unit_F += delta_F
-                    F_step = self.integrateF()
-                    for point in self.points:
-                        point.update()
-                    for unit in self.units:
-                        unit.update()
-
-                    u_step += u_step_delta
                     la_step += dL
-                    R_step = la_step * self.Pe - F_step
-                    for c in self.cl:
-                        R_step[c] = 0
-                    continue
+                    
                 else:
                     # region calculate delta_lambda
 
@@ -507,29 +491,28 @@ class GeoNonlinear: # 几何非线性
                         R_step[c] = 0
                     self.calculateA(R_step)
                     u_step_delta = np.array(self.Result).reshape((self.points_num * 3, 1))
-                    for unit in self.units:
-                        unit.split_displacement()
-                        delta_F = unit.calculateF()
-                        unit.unit_F += delta_F
-                    F_step = self.integrateF()
-                    u_step += u_step_delta
-                    for point in self.points:
-                        point.update()
-                    for unit in self.units:
-                        unit.update()
-                    R_step = la_step * self.Pe - F_step
-                    for ci in self.cl:
-                        R_step[ci] = 0
+
+                for unit in self.units:
+                    unit.split_displacement()
+                    delta_F = unit.calculateF()
+                    unit.unit_F += delta_F
+                F_step = self.integrateF()
+                u_step += u_step_delta
+                for point in self.points:
+                    point.update()
+                for unit in self.units:
+                    unit.update()
+                R_step = la_step * self.Pe - F_step
+                for ci in self.cl:
+                    R_step[ci] = 0
+                        
             F.append(F_step)
             u.append(u_step)
             la.append(la_step)
-
-            # region max load detection
-            if (max_p_detect and 1-la_step < error):
-                break
-            # endregion
-
             outputs.append(OutputData(self.points).__copy__())
+            if max_p_detect and 1-la_step < error:
+                break
+            
         # except Exception as e:
         #     print(f"Error in arc_length: {e}")
         return outputs, la, F, u
