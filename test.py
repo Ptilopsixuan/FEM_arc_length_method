@@ -7,12 +7,19 @@ model_name = "arch"
 input_path = os.path.join(os.getcwd(), "input", f"{model_name}.txt")
 model = reader.readFile(input_path)
 # output = model.iterate()
-output = model.arc_length_method(steps=500, la_0=0.005)
+output, la, F, u = model.arc_length_method(steps=10000, s=0.0005, max_p_detect=False)
+
+
 output_path = os.path.join(os.getcwd(), "output", f"{model_name}.txt")
 if not os.path.exists(os.path.dirname(output_path)):
     os.makedirs(os.path.dirname(output_path))
 
 for i, o in enumerate(output):
-    if i % 10 == 0:
+    if i % 200 == 0:
         writer.writeFile(output_path.replace(".txt", f"_{i:05d}.txt"), o)
         print(i, o)
+
+        
+plt.plot([-item[16][0] for item in u], la)
+plt.show()
+a = input("Press Enter to continue...")

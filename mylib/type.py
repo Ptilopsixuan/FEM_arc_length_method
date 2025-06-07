@@ -414,131 +414,125 @@ class GeoNonlinear: # 几何非线性
 
         return outputs
 
-    def arc_length_method(self, steps = 200, error: float=1e-3, max_p_detect = True, la_0 = 0.005) -> None:
+    def arc_length_method(self, steps = 200, error: float=1e-3, max_p_detect = True, s = 0.005) -> None:
         # try:
-        # 弧长迭代求解
         self.calculateNumber()
         self.integratePe()
         F = [np.zeros((self.points_num * 3, 1))]
         u = [np.zeros((self.points_num * 3, 1))]
-        P = []  # 初始化P
-        P.append(la_0 * self.Pe)
+        la: list[float] = [0]
+        
         outputs: list[OutputData] = []
-        la = la_0
-        peak = False  # 是否达到峰值
 
         for step in range(steps):
             iter: int = 0
-            P_step = P[step].copy()  # 逐步加载
             F_step = F[step].copy()
             u_step = u[step].copy()
+            la_step = la[step]
+            if step == 0:
+                d_init = np.vstack((u_step, la_step))
+            else:
+                d_init = np.vstack((u_step - u[step - 1], la_step - la[step - 1]))
 
-            R_step = P_step - F_step
-            dL = 0
-            self.integrateKe()
-            max_p = False
-            # dLs = []
-
-            while max(abs(R_step)) >= error * max(abs(la_0 * self.Pe)):
+            while iter == 0 or max(abs(R_step)) >= error * max(abs(la_step * self.Pe)):
                 iter += 1
-                print(f"step: {step}, iteration: {iter}, la: {la}")
+                print(f"step: {step}, iteration: {iter}, la: {la_step}")
                 self.reset()
-                self.calculateA(R_step)
-                u_step_delta = np.array(self.Result).reshape((self.points_num * 3, 1))
-                f_step_delta = dL * self.Pe.reshape((self.points_num * 3, 1))
-                # vector_delta = np.vstack((u_step_delta, f_step_delta))
-                vector_delta = np.vstack((u_step_delta, dL))
-                back = np.matmul(vector_delta.T, vector_delta)[0][0]
-                if back < 0:  # 如果
-                    dL = -dL
-                if step == 78:
-                    1==1
-
-
-                for unit in self.units:
-                    unit.split_displacement()
-                    delta_F = unit.calculateF()
-                    unit.unit_F += delta_F
-                F_step = self.integrateF()
-
-                u_step += u_step_delta
-                R_step = P_step - F_step
-                for point in self.points:
-                    point.update()
-                for unit in self.units:
-                    unit.update()
                 self.integrateKe()
 
-                # region calculate delta_lambda
+                if iter == 1:
+                    self.calculateA(self.Pe)
+                    u_step_delta = np.array(self.Result).reshape((self.points_num * 3, 1))
+                    dL = s/np.sqrt(np.matmul(u_step_delta.T, u_step_delta)[0][0]+1)
+                    # self.Result = dL * self.Result
+                    u_step_delta *= dL
+                    for point in self.points:
+                        point.ax *= dL
+                        point.ay *= dL
+                        point.a_theta *= dL
+                    # f_step_delta = dL * self.Pe.reshape((self.points_num * 3, 1))
+                    # d_delta = np.vstack((u_step_delta, f_step_delta))
 
-                ff = np.matmul(self.Pe.T, self.Pe)[0][0]  
-                inv = np.linalg.inv(self.Kg_calc)
-                
-                cl = self.addConstraint()
-                mask = [i for i in range(self.points_num * 3) if i not in cl]
-                r = R_step[np.ix_(mask)].reshape((self.points_num * 3 - len(cl), 1))
-                x = u_step[np.ix_(mask)].reshape((self.points_num * 3 - len(cl), 1))
+                    d_delta = np.vstack((u_step_delta, dL))
+                    if np.matmul(d_delta.T, d_init)[0][0] < 0:
+                        dL = -dL
+                        u_step_delta = -u_step_delta
+                        for point in self.points:
+                            point.ax = -point.ax
+                            point.ay = -point.ay
+                            point.a_theta = -point.a_theta
 
-                Kr = np.matmul(inv, r).reshape((self.points_num * 3 - len(cl), 1))
-                Kf = np.matmul(inv, self.Pe_calc)
+                    for unit in self.units:
+                        unit.split_displacement()
+                        delta_F = unit.calculateF()
+                        unit.unit_F += delta_F
+                    F_step = self.integrateF()
+                    for point in self.points:
+                        point.update()
+                    for unit in self.units:
+                        unit.update()
 
-                a = (ff + np.matmul(Kf.T, Kf))
-                b = 2*(la*ff - np.matmul(Kf.T, (Kr + x)))[0]
-                c = (np.matmul(Kr.T, (Kr+2*x)))[0][0]
-
-                roots = np.roots([a, b, c])
-                dL = roots[np.argmin(abs(roots))].real  # 选择最小的根
-                
-                # endregion
-
-                la += dL
-                P_step += dL * self.Pe
-                R_step += dL * self.Pe
-                for ci in self.cl:
-                    R_step[ci] = 0
-
-                # region check divergence
-
-                # dLs.append(dL)
-                # if len(dLs) > 2 and dLs[-1] * dLs[-2] < 0 and abs(dLs[-1]) > abs(dLs[-3]):
-                #     print(f"Warning: dL is increasing: {dLs[-1]} > {dLs[-2]}")
-                #     la_0 = -la_0
-                #     la += 2*la_0
-                #     P_step += 2*la_0 * self.Pe
-                #     R_step += 2*la_0 * self.Pe
-                #     for ci in self.cl:
-                #         R_step[ci] = 0
-                #     dLs = []
-                # endregion
-
-            # region max load detection
-            """ peak detection == True"""
-            if max_p_detect:
-                if max(abs(self.Pe - P_step))/max(abs(self.Pe)) < error: # 如果弧长接近1，认为达到了目标荷载
-                    max_p = True
-
-                if max(abs(P_step + la_0 * self.Pe))/max(abs(self.Pe)) < 1:
-                    P_step += la_0 * self.Pe
-                    la = la_0
+                    u_step += u_step_delta
+                    la_step += dL
+                    R_step = la_step * self.Pe - F_step
+                    for c in self.cl:
+                        R_step[c] = 0
+                    continue
                 else:
-                    P_step = self.Pe
-                    la = la_0
-            else:
-                """peak detection == False"""
-                P_step += la_0 * self.Pe
-                la += la_0
-            # endregion
+                    # region calculate delta_lambda
 
+                    ff = np.matmul(self.Pe.T, self.Pe)[0][0]  
+                    inv = np.linalg.inv(self.Kg_calc)
+                    
+                    cl = self.addConstraint()
+                    mask = [i for i in range(self.points_num * 3) if i not in cl]
+                    r = R_step[np.ix_(mask)].reshape((self.points_num * 3 - len(cl), 1))
+                    x = u_step[np.ix_(mask)].reshape((self.points_num * 3 - len(cl), 1))
+
+                    Kr = np.matmul(inv, r).reshape((self.points_num * 3 - len(cl), 1))
+                    Kf = np.matmul(inv, self.Pe_calc)
+
+                    a = (ff + np.matmul(Kf.T, Kf))
+                    b = 2*(la_step*ff - np.matmul(Kf.T, (Kr + x)))[0]
+                    c = (np.matmul(Kr.T, (Kr+2*x)))[0][0]
+
+                    roots = np.roots([a, b, c])
+                    dL = roots[np.argmin(abs(roots))].real  # 选择最小的根
+                    
+                    # endregion
+
+                    la_step += dL
+                    R_step = la_step * self.Pe - F_step
+                    for c in self.cl:
+                        R_step[c] = 0
+                    self.calculateA(R_step)
+                    u_step_delta = np.array(self.Result).reshape((self.points_num * 3, 1))
+                    for unit in self.units:
+                        unit.split_displacement()
+                        delta_F = unit.calculateF()
+                        unit.unit_F += delta_F
+                    F_step = self.integrateF()
+                    u_step += u_step_delta
+                    for point in self.points:
+                        point.update()
+                    for unit in self.units:
+                        unit.update()
+                    R_step = la_step * self.Pe - F_step
+                    for ci in self.cl:
+                        R_step[ci] = 0
             F.append(F_step)
             u.append(u_step)
-            P.append(P_step)
-            outputs.append(OutputData(self.points).__copy__())
+            la.append(la_step)
 
-            if max_p:
+            # region max load detection
+            if (max_p_detect and 1-la_step < error):
                 break
+            # endregion
+
+            outputs.append(OutputData(self.points).__copy__())
         # except Exception as e:
         #     print(f"Error in arc_length: {e}")
-        return outputs
+        return outputs, la, F, u
     
 class OutputData:
     points:list[Point] = []

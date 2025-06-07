@@ -1,4 +1,4 @@
-a = [1,2]
-b = [3,4]
-c = b/a
-print(c)
+a = [0]
+b = a[0]
+b = 1
+print(a, b)  # Output: [0] 1
