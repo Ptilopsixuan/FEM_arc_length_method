@@ -26,7 +26,7 @@ def d(data: type.OutputData, path):
     x_min = -0.3#min(x) - 0.2
     y_min = -3#min(y) - 0.2
     x_max = 10.3#max(x) + 0.2
-    y_max = 3#max(y) + 0.2
+    y_max = 5#max(y) + 0.2
     ax.set_xlim(x_min,x_max)
     ax.set_ylim(y_min,y_max)
     # plt.show()

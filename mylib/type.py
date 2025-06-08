@@ -1,5 +1,6 @@
 import numpy as np
 import math
+from numba import jit
 
 class Point: # 节点
     id = 0
@@ -331,6 +332,7 @@ class GeoNonlinear: # 几何非线性
 
         return Pe_calc
     
+    # @jit(nopython=True)
     def calculateA(self, P: np.array) -> list[float]:
         inv = np.linalg.inv(self.Kg_calc)
         # P = self.Pe_calc.T
@@ -435,7 +437,6 @@ class GeoNonlinear: # 几何非线性
 
             while iter == 0 or max(abs(R_step)) >= error * max(abs(la_step * self.Pe)):
                 iter += 1
-                print(f"step: {step}, iteration: {iter}, la: {la_step}")
                 self.reset()
                 self.integrateKe()
 
@@ -443,14 +444,11 @@ class GeoNonlinear: # 几何非线性
                     self.calculateA(self.Pe)
                     u_step_delta = np.array(self.Result).reshape((self.points_num * 3, 1))
                     dL = s/np.sqrt(np.matmul(u_step_delta.T, u_step_delta)[0][0]+1)
-                    # self.Result = dL * self.Result
                     u_step_delta *= dL
                     for point in self.points:
                         point.ax *= dL
                         point.ay *= dL
                         point.a_theta *= dL
-                    # f_step_delta = dL * self.Pe.reshape((self.points_num * 3, 1))
-                    # d_delta = np.vstack((u_step_delta, f_step_delta))
 
                     d_delta = np.vstack((u_step_delta, dL))
                     if np.matmul(d_delta.T, d_init)[0][0] < 0:
@@ -471,13 +469,13 @@ class GeoNonlinear: # 几何非线性
                     cl = self.addConstraint()
                     mask = [i for i in range(self.points_num * 3) if i not in cl]
                     r = R_step[np.ix_(mask)].reshape((self.points_num * 3 - len(cl), 1))
-                    x = u_step[np.ix_(mask)].reshape((self.points_num * 3 - len(cl), 1))
+                    x = (u_step-u[step])[np.ix_(mask)].reshape((self.points_num * 3 - len(cl), 1))
 
                     Kr = np.matmul(inv, r).reshape((self.points_num * 3 - len(cl), 1))
-                    Kf = np.matmul(inv, self.Pe_calc)
+                    Kf = np.matmul(inv, self.Pe_calc).reshape((self.points_num * 3 - len(cl), 1))
 
-                    a = (ff + np.matmul(Kf.T, Kf))
-                    b = 2*(la_step*ff - np.matmul(Kf.T, (Kr + x)))[0]
+                    a = ff + np.matmul(Kf.T, Kf)[0][0]
+                    b = 2*((la_step-la[step])*ff - np.matmul(Kf.T, (Kr + x))[0][0])
                     c = (np.matmul(Kr.T, (Kr+2*x)))[0][0]
 
                     roots = np.roots([a, b, c])
@@ -485,7 +483,7 @@ class GeoNonlinear: # 几何非线性
                     
                     # endregion
 
-                    la_step += dL
+                    la_step -= dL
                     R_step = la_step * self.Pe - F_step
                     for c in self.cl:
                         R_step[c] = 0
@@ -505,13 +503,16 @@ class GeoNonlinear: # 几何非线性
                 R_step = la_step * self.Pe - F_step
                 for ci in self.cl:
                     R_step[ci] = 0
+
+                print(f"step: {step}, iteration: {iter}, la: {la_step}")
                         
             F.append(F_step)
             u.append(u_step)
             la.append(la_step)
             outputs.append(OutputData(self.points).__copy__())
+
             if max_p_detect and 1-la_step < error:
-                break
+                return outputs, la, F, u
             
         # except Exception as e:
         #     print(f"Error in arc_length: {e}")
