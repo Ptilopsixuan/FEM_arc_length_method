@@ -479,11 +479,11 @@ class GeoNonlinear: # 几何非线性
                     c = (np.matmul(Kr.T, (Kr+2*x)))[0][0]
 
                     roots = np.roots([a, b, c])
-                    dL = roots[np.argmin(abs(roots))].real  # 选择最小的根
+                    dL = roots[np.argmin(abs(roots))]  # 选择最小的根
                     
                     # endregion
 
-                    la_step -= dL
+                    la_step += dL
                     R_step = la_step * self.Pe - F_step
                     for c in self.cl:
                         R_step[c] = 0
