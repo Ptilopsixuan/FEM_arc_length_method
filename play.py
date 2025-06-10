@@ -3,12 +3,11 @@ import matplotlib.pyplot as plt
 from autograd import grad
 
 def Y(x):
-    y = x**3
+    y = x*(x-1)*(x-2)
     return y
 
 def K(x):
-    k = 3*x**2
-    # k = 1-1/x**2
+    k = 3*x**2 - 6*x + 2
     return k
 
 def arc(start_x, s, y_max, steps):
@@ -18,8 +17,8 @@ def arc(start_x, s, y_max, steps):
         x = xs[i]
         la = las[i]
         k = K(x)
-
         dx = y_max/k
+        
         dL = s/(dx**2 + 1)**0.5
         dx = dL*y_max/k
         la += dL
@@ -60,10 +59,10 @@ def arc(start_x, s, y_max, steps):
     return xs, las
 
 if __name__ == "__main__":
-   y_max = 5
-   s = 0.01
-   start_x = 0.01
-   steps = 20
+   y_max = 2
+   s = 0.1
+   start_x = 0
+   steps = 30
    x, la = arc(start_x, s, y_max, steps)
    plt.plot(x, [l*y_max for l in la])
    plt.show()

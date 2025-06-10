@@ -3,14 +3,13 @@ import numpy as np
 import os
 import matplotlib.pyplot as plt
 
-# model_names = ["0.1", "0.3", "0.5"]
-model_names = ["0.3_200"]
+model_names = ["0.1", "0.3", "0.5"]
 
 for model_name in model_names:
     input_path = os.path.join(os.getcwd(), "input", f"{model_name}.txt")
     model = reader.readFile(input_path)
     # output = model.iterate()
-    output, la, F, u = model.arc_length_method(steps=25000, s=0.0001, max_p_detect=False)
+    output, la, F, u = model.arc_length_method(steps=25000, s=0.0005, max_p_detect=False)
 
     output_path = os.path.join(os.getcwd(), "output", f"{model_name}", f"{model_name}.txt")
     if not os.path.exists(os.path.dirname(output_path)):
