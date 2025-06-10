@@ -475,7 +475,7 @@ class GeoNonlinear: # 几何非线性
                     Kf = np.matmul(inv, self.Pe_calc).reshape((self.points_num * 3 - len(cl), 1))
 
                     a = ff + np.matmul(Kf.T, Kf)[0][0]
-                    b = 2*((la_step-la[step])*ff - np.matmul(Kf.T, (Kr + x))[0][0])
+                    b = 2*((la_step-la[step])*ff + np.matmul(Kf.T, (Kr + x))[0][0])
                     c = (np.matmul(Kr.T, (Kr+2*x)))[0][0]
 
                     roots = np.roots([a, b, c])

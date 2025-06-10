@@ -29,6 +29,7 @@ def create(path, p_num, h):
         f.write(f_hitch)
 
 if __name__ == "__main__":
-    for name in ["0.1", "0.3", "0.5"]:
-        path = os.path.join(os.getcwd(), "input", f"{name}.txt")
-        create(path, 101, float(name)*10)
+    # for name in ["0.1", "0.3", "0.5"]:
+    name = "0.3_200"
+    path = os.path.join(os.getcwd(), "input", f"{name}.txt")
+    create(path, 201, float(name)*10)
