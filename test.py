@@ -20,7 +20,7 @@ for model_name in model_names:
             writer.writeFile(output_path.replace(".txt", f"_{i:05d}.txt"), o)
             print(i, o)
 
-    plt.plot([-item[151][0] for item in u], la)
+    plt.plot([item[151][0] for item in u], la)
     plt.savefig(os.path.join(os.getcwd(), model_name + ".png"))
 
     curve_path = os.path.join(os.getcwd(), model_name)
